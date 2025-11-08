@@ -521,7 +521,7 @@
         784
       ],
       "id": "93d957af-dc9a-4d47-b1c7-12792c60bf6e",
-      "name": "write_investor_profile1",
+      "name": "write_investor_profile",
       "credentials": {
         "googleSheetsOAuth2Api": {
           "name": "Google Sheets account"
@@ -1436,7 +1436,7 @@
         ]
       ]
     },
-    "write_investor_profile1": {
+    "write_investor_profile": {
       "ai_tool": [
         [
           {
