@@ -7,7 +7,7 @@ Includes a workflow JSON ready to import.
 
 ## 🎥 Demo
 
-https://github.com/user-attachments/assets/502631ab-c0d3-4ceb-8ec8-cd50810acdf7
+https://github.com/user-attachments/assets/053019c9-095d-4e73-bde5-13c330fee405
 
 ---
 
