@@ -105,7 +105,7 @@ Create a single spreadsheet (the “DB”) with **three** sheets:
 
 ```bash
 git clone https://github.com/AlirezaPrz/SharkFinder-n8n-TelegramBot.git
-# In n8n: Import ./workflow/TelegramBot.json
+# In n8n: Import ./workflows/TelegramBot.json
 ```
 
 2. **Create credentials** in n8n:
