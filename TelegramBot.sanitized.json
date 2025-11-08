@@ -1,0 +1,1630 @@
+{
+  "name": "TelegramBot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -512,
+        176
+      ],
+      "id": "6810acea-2233-4159-bfc0-d9cd25d0e036",
+      "name": "Telegram Trigger",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.inputText }}",
+        "options": {
+          "systemMessage": "=# SharkFinder – Intake Agent\n\nYou are **SharkFinder’s Intake Agent**.  \nYou handle **one turn only** per workflow run.  \nYour job is to **parse user input and call exactly one tool**, then **stop completely**.\n\n---\n\n## Input Provided (from n8n)\n\nYou will receive:\n- `role`: `\"business\"` or `\"investor\"`\n- `inputText`: free-form text describing the profile\n\n> Do **not** attempt to guess user identity.  \n> **chat_id is assigned elsewhere in n8n** — do not generate or modify it.\n\n---\n\n## Your Task\n\n1. **Extract structured fields** from `inputText`.\n2. **Normalize** values based on the schema (below).\n3. **Call one tool only** based on the role:\n   - If `role = business` → call **write_business_profile**\n   - If `role = investor` → call **write_investor_profile**\n4. **After the tool call**, output the literal text:\n\n\n\n### Do not:\n- Chat with the user.\n- Ask follow-up questions.\n- Call a tool twice.\n- Output explanations, emojis, reasoning, or extra commentary.\n\n---\n\n## Data Schemas\n\n### If `role = business`, call:\n**write_business_profile** with:\n```json\n{\n  \"name\": \"\",\n  \"industry\": \"\", (e.g. AI; Healthcare)\n  \"stage\": \"\", (e.g. seed)\n  \"funding_needed\": \"\" USD, (e.g. 200k USD)\n  \"location\": \"\",\n  \"email\": \"\"\n}\n\n### If `role = investor`, call:\n**write_investor_profile** with:\n```json\n{\n  \"name\": \"\",\n  \"sector\": \"\", (e.g. AI; Healthcare)\n  \"stage\": \"\", (e.g. pre-seed/seed)\n  \"ticket_size\": \"\"-\"\" USD, (range of the money e.g. 300k–800k USD)\n  \"location\": \"\",\n  \"email\": \"\"\n}\n\n\n",
+          "maxIterations": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1152,
+        496
+      ],
+      "id": "35737855-a26d-44e3-b5ba-4c6d08b35259",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chat_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1088,
+        784
+      ],
+      "id": "5a620e3a-5f04-45eb-a240-34bc1b867ce1",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        912,
+        784
+      ],
+      "id": "aae35755-40d5-4a2f-bdce-bd7bef0c5479",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ ($json.message?.text || '').trim() }}",
+                    "rightValue": "=/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2beabf2c-7e3b-4924-93cf-089af5a91fc1"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Starting the bot"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0f7577dc-ba98-4478-8687-84319daa71db",
+                    "leftValue": "={{ $json.callback_query?.data || '' }}",
+                    "rightValue": "role_business",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Business_route"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "de8996c8-af06-4d18-95cc-5b032c45fbfd",
+                    "leftValue": "={{ $json.callback_query?.data || '' }}",
+                    "rightValue": "role_investor",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Investor_route"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "71cd6d7c-8d59-483b-a081-b8c638bfbca5",
+                    "leftValue": "={{ !!($json.message?.voice?.file_id      || $json.message?.audio?.file_id      || (($json.message?.document?.mime_type || '').startsWith('audio/'))) }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voice_route"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "810fa416-57b1-4036-9c90-daa6b2521964",
+                    "leftValue": "={{ !!(($json.message?.text || '').trim()) }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text_route"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -336,
+        128
+      ],
+      "id": "00731560-865a-4f01-8896-53f23cc28e41",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $json.callback_query.id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        32
+      ],
+      "id": "6fb400a8-9737-4132-bea0-9add5816d0c3",
+      "name": "Answer Query a callback",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $json.callback_query.id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        192
+      ],
+      "id": "029cd172-dfe6-4dc1-baa9-152420f2457e",
+      "name": "Answer Query a callback1",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        160,
+        384
+      ],
+      "id": "045648f8-c3b2-4ae8-b038-06f287e9ae77",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        528,
+        496
+      ],
+      "id": "eca14e5c-d6f1-4f29-ac96-9e09276692dc",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_BUSINESSES_GID }}",
+          "mode": "list",
+          "cachedResultName": "Businesses"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Add the role the Fields').item.json.chat_id }}",
+            "name": "={{ $fromAI('name', 'name of the business') }}",
+            "industry": "={{ $fromAI('industry', 'name of the industry, in the format (industry) for example Tech; AI; (industry)') }}",
+            "stage": "={{ $fromAI('stage', 'stage of the business, the stage should ba something between {seed, pre-seed, Serias A') }}",
+            "funding_needed": "={{ $fromAI('funding_needed', 'funding that the business needs, in the format (Money)(k/m for thousand and million) USD') }}",
+            "location": "={{ $fromAI('location', 'location of the business') }}",
+            "email": "={{ $fromAI('email', 'email of the business') }}"
+          },
+          "matchingColumns": [
+            "chat_id"
+          ],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "funding_needed",
+              "displayName": "funding_needed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1280,
+        784
+      ],
+      "id": "473e3b09-a4ec-4612-883a-0ca97644c5f3",
+      "name": "write_business_profile",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_INVESTORS_GID }}",
+          "mode": "list",
+          "cachedResultName": "Investors"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Add the role the Fields').item.json.chat_id }}",
+            "name": "={{ $fromAI('name', 'name of the investor', string, null) }}",
+            "sector": "={{ $fromAI('sector', 'sector that the investor want to invest in, in the format (sector); (secotr) for example tech; AI', string, null) }}",
+            "stage": "={{ $fromAI('stage', 'stage of the businesses that the investor want to invest in, in the format (stage)/(stage) for example pre-seed/seed', string, null) }}",
+            "ticket_size": "={{ $fromAI('ticket_size', 'range of how much money does the investor want to invest in the format (least they wanna invest)(k/m)-(most they wanna invest)(k/m) USD (for example 200k-300k USD)', string, null) }}",
+            "location": "={{ $fromAI('location', 'the location of the investor', string, null) }}",
+            "email": "={{ $fromAI('email', 'email of the investor', string, null) }}"
+          },
+          "matchingColumns": [
+            "chat_id"
+          ],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sector",
+              "displayName": "sector",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ticket_size",
+              "displayName": "ticket_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        784
+      ],
+      "id": "93d957af-dc9a-4d47-b1c7-12792c60bf6e",
+      "name": "write_investor_profile1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "=👋 Welcome to **SharkFinder**.\n\nThis bot intelligently connects **startups** with **aligned investors** — based on real fit, not guesswork.\n\nWhether you're:\n• A **founder** raising capital, or  \n• An **investor** looking for the right opportunities  \n\nYou can type or voice-record your answers, then SharkFinder will collect a few key details and instantly generate your **best match recommendations** from our network.\n\nPlease choose your role to begin:",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🚀 I’m a Business",
+                    "additionalFields": {
+                      "callback_data": "role_business"
+                    }
+                  },
+                  {
+                    "text": "💸 I’m an Investor",
+                    "additionalFields": {
+                      "callback_data": "role_investor"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        -144
+      ],
+      "id": "2f2527da-40cf-4e04-b82b-b5685a543a2f",
+      "name": "Send a Welcome message",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $node[\"Switch\"].json.callback_query.message.chat.id }}",
+        "messageId": "={{ $node[\"Switch\"].json.callback_query.message.message_id }}",
+        "text": "=✅ Business selected\n\nReply in any style (text message or voice message). To match you well, include as many of these as you can:\n• Company name + website (or deck)\n• Industry\n• Stage (idea / pre-seed / seed / A / B…)\n• Funding needed (USD)\n• Location (City, Country)\n• Contact email",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        32
+      ],
+      "id": "99f6366f-c6ab-4876-b5ce-d39bd5a409b7",
+      "name": "Send Instructions",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $node[\"Switch\"].json.callback_query.message.chat.id }}",
+        "messageId": "={{ $node[\"Switch\"].json.callback_query.message.message_id }}",
+        "text": "=✅ You chose **Investor**.\n\nTo set up your profile, please reply to the next message with the fields below (text message or voice message). We’ll save it to our database.\n\nFields we need:\n- name (your name or firm)\n- sector(s) (comma-separated)\n- stage(s) (pre-seed / seed / A / B…)\n- ticket_size (USD, single value or range)\n- location (City, Country)\n- email",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        192
+      ],
+      "id": "843dc8c3-e181-4f2b-9956-27ac05158689",
+      "name": "Send Instructions1",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_USERSTATE_GID }}",
+          "mode": "list",
+          "cachedResultName": "UserState"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Chat_id": "={{ $json.result.chat.id }}",
+            "role": "investor",
+            "updated_at": "={{ $today }}",
+            "stage": "In_progress"
+          },
+          "matchingColumns": [
+            "Chat_id"
+          ],
+          "schema": [
+            {
+              "id": "Chat_id",
+              "displayName": "Chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        192
+      ],
+      "id": "4dfae5fb-cd7b-4071-ba5e-c02454eb139f",
+      "name": "Add the investor to DB",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_USERSTATE_GID }}",
+          "mode": "list",
+          "cachedResultName": "UserState"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Chat_id": "={{ $json.result.chat.id }}",
+            "role": "business",
+            "updated_at": "={{ $today }}",
+            "stage": "In_progress"
+          },
+          "matchingColumns": [
+            "Chat_id"
+          ],
+          "schema": [
+            {
+              "id": "Chat_id",
+              "displayName": "Chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        32
+      ],
+      "id": "a42a1634-e723-4a18-91c1-0c2472a4e99a",
+      "name": "Add the business to DB",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice?.file_id || $json.message.audio?.file_id || $json.message.document?.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        384
+      ],
+      "id": "f3a83223-afdb-4429-b5ac-af0902be892a",
+      "name": "Get the voice message",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3db0c035-bccd-44d2-b592-b4227fbc7a24",
+              "name": "chat_id",
+              "value": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "0a6a987c-9500-4bb4-9130-81f3f2fb2b11",
+              "name": "inputText",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -16,
+        576
+      ],
+      "id": "753d938d-499b-4d80-9af5-f2b4ca1306ec",
+      "name": "Format the Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "37315b7a-9766-43a0-a652-4bdd601f1e16",
+              "name": "inputText",
+              "value": "={{ $json.content.parts[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "d0b5d3e0-0e18-4c59-a760-059601b3a7de",
+              "name": "chat_id",
+              "value": "={{ $('Switch').item.json.message.chat.id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        336,
+        384
+      ],
+      "id": "1ccc8670-5eae-4b48-9770-fbe929a700e4",
+      "name": "Format the Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d2eefb81-f1aa-43c8-a479-54bfc68abf4b",
+              "name": "role",
+              "value": "={{ $json.role }}",
+              "type": "string"
+            },
+            {
+              "id": "f6509bf6-fa6d-4375-bca0-010599e454b8",
+              "name": "chat_id",
+              "value": "={{ $('Merge').item.json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "13613e41-7e0b-4565-ac0e-3694fee1346d",
+              "name": "inputText",
+              "value": "={{ $('Merge').item.json.inputText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        496
+      ],
+      "id": "0ed7b94b-9882-4eb6-9714-ab29bd8cfe4b",
+      "name": "Add the role the Fields"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_USERSTATE_GID }}",
+          "mode": "list",
+          "cachedResultName": "UserState"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Chat_id",
+              "lookupValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        704,
+        496
+      ],
+      "id": "fbbc5311-5701-45dd-a633-e5c2e56750bf",
+      "name": "Find the role of user",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Add the role the Fields').item.json.role }}",
+                    "rightValue": "business",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "98a768fb-ac78-4e88-a2b6-087b391ccb45"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "matches for business"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1e4fd42d-44a1-4f76-968b-ac440168688f",
+                    "leftValue": "={{ $('Add the role the Fields').item.json.role }}",
+                    "rightValue": "investor",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "matches for investor"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1632,
+        496
+      ],
+      "id": "8eea7fb1-8ba9-4c1a-82ce-cfb567d3b6e7",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_INVESTORS_GID }}",
+          "mode": "list",
+          "cachedResultName": "Investors"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2128,
+        336
+      ],
+      "id": "984de214-0bac-45b3-8de4-13e68e7eb945",
+      "name": "list_investors",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_BUSINESSES_GID }}",
+          "mode": "list",
+          "cachedResultName": "Businesses"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2128,
+        576
+      ],
+      "id": "7c8ab232-e3b1-46a0-ae86-599bfc6d6090",
+      "name": "list_businesses",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_BUSINESSES_GID }}",
+          "mode": "list",
+          "cachedResultName": "Businesses"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $('Add the role the Fields').item.json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        336
+      ],
+      "id": "183852e2-3792-48e8-a1c7-2a9dfc77083c",
+      "name": "get_user_business",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SF_DB_DOC_ID }}",
+          "mode": "list",
+          "cachedResultName": "SharkFinder DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.SF_SHEET_INVESTORS_GID }}",
+          "mode": "list",
+          "cachedResultName": "Investors"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $('Add the role the Fields').item.json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        576
+      ],
+      "id": "db17da40-ee73-4cf1-b50a-7b9f4af50e5a",
+      "name": "get_user_investor",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// BUSINESS -> INVESTORS\n\n// Input 0: get_user_business (ideally 1 row)\n// Input 1: list_investors    (many rows)\nconst in0 = $input.all(0);\nconst in1 = $input.all(1);\n\n// Helpers to classify rows\nconst isBiz = r => r && typeof r === 'object' && ('funding_needed' in r);\nconst isInv = r => r && typeof r === 'object' && ('ticket_size'   in r);\n\n// 2) Pick \"me\" and \"candidates\" even if inputs are swapped\nfunction pickBusinessAndInvestors(a, b) {\n  const A = a.map(i => i.json), B = b.map(i => i.json);\n  if (A.length === 1 && isBiz(A[0])) return { me: A[0], candidates: B };\n  if (B.length === 1 && isBiz(B[0])) return { me: B[0], candidates: A };\n  if (A.length === 1) return { me: A[0], candidates: B };\n  if (B.length === 1) return { me: B[0], candidates: A };\n  const m = A.find(isBiz) || B.find(isBiz) || A[0] || B[0];\n  const cands = (A.includes(m)) ? B : A;\n  return { me: m, candidates: cands };\n}\n\nlet { me, candidates } = pickBusinessAndInvestors(in0, in1);\n\n// 3) Guards (get chat_id from get_user_business -> fallback to me.chat_id)\nconst chatId = Number(\n  ($items('get_user_business')?.[0]?.json?.chat_id) ??\n  (me?.chat_id ?? 0)\n);\n\nif (!chatId) {\n  return [{\n    json: {\n      chat_id: null,\n      parse_mode: 'HTML',\n      disable_web_page_preview: true,\n      text: '<b>Error:</b> missing chat_id in business profile (Input 0).'\n    }\n  }];\n}\nif (!candidates?.length) {\n  return [{\n    json: {\n      chat_id: chatId,  // keep key as chat_id for Telegram node\n      parse_mode: 'HTML',\n      disable_web_page_preview: true,\n      text: '<b>No investors found</b>. Check your list_investors node.'\n    }\n  }];\n}\n\n// 4) Keep only true investor rows & dedupe\ncandidates = candidates.filter(isInv);\nconst dedup = new Map();\nfor (const c of candidates) {\n  const key = c.name || c.email || JSON.stringify(c);\n  if (!dedup.has(key)) dedup.set(key, c);\n}\ncandidates = [...dedup.values()];\n\nif (!candidates.length) {\n  return [{\n    json: {\n      chat_id: chatId,\n      parse_mode: 'HTML',\n      disable_web_page_preview: true,\n      text: '<b>No valid investor rows</b> (missing ticket_size).'\n    }\n  }];\n}\n\n// 5) Scoring helpers\nconst norm = s => (s ?? '').toString().trim().toLowerCase();\n\nconst stageAlias = s => {\n  const t = norm(s);\n  if (!t) return '';\n  if (/(^|[^a-z])idea/.test(t)) return 'idea';\n  if (/(pre[- ]?seed|preseed)/.test(t)) return 'pre-seed';\n  if (/\\bseed\\b/.test(t)) return 'seed';\n  if (/(series\\s*a|\\ba\\b)/.test(t)) return 'series a';\n  if (/(series\\s*b|\\bb\\b)/.test(t)) return 'series b';\n  if (/(series\\s*c|\\bc\\b)/.test(t)) return 'series c';\n  if (/(growth|scale)/.test(t)) return 'growth';\n  if (/(late)/.test(t)) return 'late';\n  return t;\n};\nconst STAGES = ['idea','pre-seed','seed','series a','series b','series c','growth','late'];\n\nconst stageFit = (bizStage, invStage) => {\n  const i = STAGES.indexOf(stageAlias(bizStage));\n  const j = STAGES.indexOf(stageAlias(invStage));\n  if (i < 0 || j < 0) return 0;\n  if (i === j) return 25;\n  if (Math.abs(i - j) === 1) return 12;\n  return 0;\n};\n\nfunction parseMoneyRange(s) {\n  if (!s) return null;\n  const x = norm(s).replace(/usd|\\$|,/g,'').replace(/\\s+/g,'');\n  const mul = u => u==='m' ? 1_000_000 : (u==='k' ? 1_000 : 1);\n  const r = x.match(/^(\\d+(\\.\\d+)?)(k|m)?[–-](\\d+(\\.\\d+)?)(k|m)?$/);\n  const sng = x.match(/^(\\d+(\\.\\d+)?)(k|m)?$/);\n  if (r)  return [Number(r[1]) * (r[3] ? mul(r[3]) : 1), Number(r[4]) * (r[6] ? mul(r[6]) : 1)];\n  if (sng){ const n = Number(sng[1]) * (sng[3] ? mul(sng[3]) : 1); return [n,n]; }\n  return null;\n}\nconst overlap = (a,b) => a && b && Math.max(a[0],b[0]) <= Math.min(a[1],b[1]);\n\nfunction sectorFit(bizIndustry, invSector){\n  const a=norm(bizIndustry), b=norm(invSector);\n  if (!a||!b) return 0;\n  if (a===b) return 25;\n  if (a.includes(b) || b.includes(a)) return 12;\n  const pairs = [\n    ['fintech','payments'], ['healthtech','medtech'],\n    ['ai','saas'], ['ai','mlops'], ['ai','devtools'],\n    ['proptech','constr'], ['mobility','ev'],\n    ['climate','clean'], ['biotech','diagnostics'],\n    ['logistics','supply']\n  ];\n  return pairs.some(([x,y])=> (a.includes(x)&&b.includes(y)) || (a.includes(y)&&b.includes(x))) ? 12 : 0;\n}\n\nfunction locationFit(bLoc, iLoc){\n  const b=norm(bLoc), v=norm(iLoc);\n  if (!b || !v) return 0;\n  if (v.includes('global') || v.includes('remote')) return 25;\n  if (b===v || b.includes(v) || v.includes(b)) return 25;\n  const region = s => (s.match(/canada|usa|united ?states|europe|eu|asia|latam|middle ?east|africa/)||[])[0]||'';\n  return region(b) && region(b)===region(v) ? 12 : 0;\n}\n\n// 6) Weights & normalization 0..100\nconst W = { sector:4, stage:3, capital:5, location:2 };\nconst MAX = 25 * (W.sector + W.stage + W.capital + W.location); // 25*14 = 350\n\n// Optional demo guard: floor tiny asks so you still get reasonable matches\nfunction floorFunding(range, minFloor = 25_000) {\n  if (!range) return null;\n  const lo = Math.max(range[0], minFloor);\n  const hi = Math.max(range[1], lo);\n  return [lo, hi];\n}\nconst myNeedRaw = parseMoneyRange(me.funding_needed);\nconst myNeed = myNeedRaw ? floorFunding(myNeedRaw) : null;\n\n// 7) Remove “me” if it appears by mistake\ncandidates = candidates.filter(c => c.chat_id !== me.chat_id);\n\n// 8) Score\nconst results = candidates.map(c=>{\n  const sSector = sectorFit(me.industry, c.sector);\n  const sStage  = stageFit(me.stage, c.stage);\n  const invR    = parseMoneyRange(c.ticket_size);\n\n  let sCap = 0;\n  if (myNeed && invR) {\n    sCap = overlap(myNeed, invR) ? 25 : 0;\n    if (!sCap) {\n      const midA=(myNeed[0]+myNeed[1])/2, midB=(invR[0]+invR[1])/2;\n      if (midA && Math.abs(midA-midB) <= 0.30*midA) sCap = 12;\n    }\n  }\n  const sLoc = locationFit(me.location, c.location);\n\n  const weighted = sSector*W.sector + sStage*W.stage + sCap*W.capital + sLoc*W.location;\n  const score100 = Math.round((weighted / MAX) * 100);\n\n  return {\n    name: c.name || '—',\n    sector: c.sector || '—',\n    stage: c.stage || '—',\n    capital: c.ticket_size || '—',\n    location: c.location || '—',\n    email: c.email || '—',\n    score: score100,\n  };\n}).sort((a,b)=> b.score - a.score);\n\n// 9) Top 10 & Telegram messages\nconst top = results.slice(0,10);\nconst header = \"<b>💡 Your top matches are ready!</b>\\nHere are the best options based on industry/stage/capital/location.\\n\\n<b>Top 10 matches</b>\\n\";\nconst lines = top.map((r,i)=>\n  `${i+1}) <b>${r.name}</b> — ${r.sector}\\n`+\n  `   <i>Stage:</i> ${r.stage}\\n`+\n  `   <i>Capital:</i> ${r.capital}\\n`+\n  `   <i>Location:</i> ${r.location}\\n`+\n  `   <i>Contact:</i> ${r.email}\\n\\n`\n);\n\nconst chunks = [];\nlet msg = header;\nconst LIMIT = 3500;\nfor (const L of lines) {\n  if ((msg + L).length > LIMIT) { chunks.push(msg); msg = \"<b>…continued</b>\\n\\n\" + L; }\n  else msg += L;\n}\nif (msg.trim()) chunks.push(msg);\n\nconst out = [];\nfor (const text of chunks) {\n  out.push({\n    json: {\n      chat_id: chatId,\n      parse_mode:'HTML',\n      disable_web_page_preview:true,\n      text\n    }\n  });\n}\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        336
+      ],
+      "id": "27e42331-8a8f-4a2e-8939-33162e92bc6f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// INVESTOR -> BUSINESSES\n\n// Input 0: get_user_investor (ideally 1 row)\n// Input 1: list_businesses    (many rows)\nconst in0 = $input.all(0);\nconst in1 = $input.all(1);\n\n// Helpers to classify rows\nconst isInv = r => r && typeof r === 'object' && ('ticket_size'    in r);\nconst isBiz = r => r && typeof r === 'object' && ('funding_needed' in r);\n\n// Pick \"me\" (investor) and \"candidates\" (businesses), even if inputs are swapped\nfunction pickInvestorAndBusinesses(a, b) {\n  const A = a.map(i => i.json), B = b.map(i => i.json);\n  if (A.length === 1 && isInv(A[0])) return { me: A[0], candidates: B };\n  if (B.length === 1 && isInv(B[0])) return { me: B[0], candidates: A };\n  if (A.length === 1) return { me: A[0], candidates: B };\n  if (B.length === 1) return { me: B[0], candidates: A };\n  const m = A.find(isInv) || B.find(isInv) || A[0] || B[0];\n  const cands = (A.includes(m)) ? B : A;\n  return { me: m, candidates: cands };\n}\n\nlet { me, candidates } = pickInvestorAndBusinesses(in0, in1);\n\n// Chat ID: pull directly from get_user_investor (preferred), fallback to me.chat_id\nconst chatId = Number(\n  ($items('get_user_investor')?.[0]?.json?.chat_id) ??\n  (me?.chat_id ?? 0)\n);\n\nif (!chatId) {\n  return [{\n    json: {\n      chat_id: null,\n      parse_mode: 'HTML',\n      disable_web_page_preview: true,\n      text: '<b>Error:</b> missing chat_id in investor profile (Input 0).'\n    }\n  }];\n}\n\n// Keep only true business rows & dedupe\ncandidates = candidates.filter(isBiz);\nconst dedup = new Map();\nfor (const c of candidates) {\n  const key = c.name || c.email || JSON.stringify(c);\n  if (!dedup.has(key)) dedup.set(key, c);\n}\ncandidates = [...dedup.values()];\n\nif (!candidates.length) {\n  return [{\n    json: {\n      chat_id: chatId,\n      parse_mode: 'HTML',\n      disable_web_page_preview: true,\n      text: '<b>No valid business rows</b> (missing funding_needed).'\n    }\n  }];\n}\n\n// ---------- Scoring helpers ----------\nconst norm = s => (s ?? '').toString().trim().toLowerCase();\n\n// Stage normalization & proximity\nconst stageAlias = s => {\n  const t = norm(s);\n  if (!t) return '';\n  if (/(^|[^a-z])idea/.test(t)) return 'idea';\n  if (/(pre[- ]?seed|preseed)/.test(t)) return 'pre-seed';\n  if (/\\bseed\\b/.test(t)) return 'seed';\n  if (/(series\\s*a|\\ba\\b)/.test(t)) return 'series a';\n  if (/(series\\s*b|\\bb\\b)/.test(t)) return 'series b';\n  if (/(series\\s*c|\\bc\\b)/.test(t)) return 'series c';\n  if (/(growth|scale)/.test(t)) return 'growth';\n  if (/(late)/.test(t)) return 'late';\n  return t;\n};\nconst STAGES = ['idea','pre-seed','seed','series a','series b','series c','growth','late'];\n\nconst stageFit = (invPrefStage, bizStage) => {\n  const i = STAGES.indexOf(stageAlias(invPrefStage));\n  const j = STAGES.indexOf(stageAlias(bizStage));\n  if (i < 0 || j < 0) return 0;\n  if (i === j) return 25;\n  if (Math.abs(i - j) === 1) return 12;\n  return 0;\n};\n\n// Money parsing: \"50k–250k\", \"$1.5m\", \"600k USD\"\nfunction parseMoneyRange(s) {\n  if (!s) return null;\n  const x = norm(s).replace(/usd|\\$|,/g,'').replace(/\\s+/g,'');\n  const mul = u => u==='m' ? 1_000_000 : (u==='k' ? 1_000 : 1);\n  const r   = x.match(/^(\\d+(\\.\\d+)?)(k|m)?[–-](\\d+(\\.\\d+)?)(k|m)?$/);\n  const sng = x.match(/^(\\d+(\\.\\d+)?)(k|m)?$/);\n  if (r)  return [Number(r[1]) * (r[3] ? mul(r[3]) : 1), Number(r[4]) * (r[6] ? mul(r[6]) : 1)];\n  if (sng){ const n = Number(sng[1]) * (sng[3] ? mul(sng[3]) : 1); return [n,n]; }\n  return null;\n}\nconst overlap = (a,b) => a && b && Math.max(a[0],b[0]) <= Math.min(a[1],b[1]);\n\n// Sector/industry proximity\nfunction sectorFit(invSector, bizIndustry){\n  const a=norm(invSector), b=norm(bizIndustry);\n  if (!a||!b) return 0;\n  if (a===b) return 25;\n  if (a.includes(b) || b.includes(a)) return 12;\n  const pairs = [\n    ['fintech','payments'], ['healthtech','medtech'],\n    ['ai','saas'], ['ai','mlops'], ['ai','devtools'],\n    ['proptech','constr'], ['mobility','ev'],\n    ['climate','clean'], ['biotech','diagnostics'],\n    ['logistics','supply']\n  ];\n  return pairs.some(([x,y])=> (a.includes(x)&&b.includes(y)) || (a.includes(y)&&b.includes(x))) ? 12 : 0;\n}\n\n// Location proximity\nfunction locationFit(iLoc, bLoc){\n  const v=norm(iLoc), b=norm(bLoc);\n  if (!b || !v) return 0;\n  if (v.includes('global') || v.includes('remote')) return 25;\n  if (b===v || b.includes(v) || v.includes(b)) return 25;\n  const region = s => (s.match(/canada|usa|united ?states|europe|eu|asia|latam|middle ?east|africa/)||[])[0]||'';\n  return region(b) && region(b)===region(v) ? 12 : 0;\n}\n\n// ---------- Weights & normalization ----------\nconst W = { sector:4, stage:3, capital:5, location:2 };\nconst MAX = 25 * (W.sector + W.stage + W.capital + W.location); // 25*14 = 350\n\nconst myTicket = parseMoneyRange(me.ticket_size);\n\n// Remove “me” if it somehow appears\ncandidates = candidates.filter(c => c.chat_id !== me.chat_id);\n\n// Score businesses against investor prefs\nconst results = candidates.map(c=>{\n  const sSector = sectorFit(me.sector, c.industry);\n  const sStage  = stageFit(me.stage, c.stage);\n  const askR    = parseMoneyRange(c.funding_needed);\n\n  let sCap = 0;\n  if (myTicket && askR) {\n    sCap = overlap(myTicket, askR) ? 25 : 0;\n    if (!sCap) {\n      const midA=(myTicket[0]+myTicket[1])/2, midB=(askR[0]+askR[1])/2;\n      if (midA && Math.abs(midA-midB) <= 0.30*midA) sCap = 12;\n    }\n  }\n  const sLoc = locationFit(me.location, c.location);\n\n  const weighted = sSector*W.sector + sStage*W.stage + sCap*W.capital + sLoc*W.location;\n  const score100 = Math.round((weighted / MAX) * 100);\n\n  return {\n    name: c.name || '—',\n    industry: c.industry || '—',\n    stage: c.stage || '—',\n    funding_needed: c.funding_needed || '—',\n    location: c.location || '—',\n    email: c.email || '—',\n    score: score100,\n  };\n}).sort((a,b)=> b.score - a.score);\n\n// Compose Telegram messages\nconst top = results.slice(0,10);\nconst header = \"<b>💡 Your top startup matches are ready!</b>\\nHere are the best options based on sector/stage/ask/location.\\n\\n<b>Top 10 matches</b>\\n\";\nconst lines = top.map((r,i)=>\n  `${i+1}) <b>${r.name}</b> — ${r.industry}\\n`+\n  `   <i>Stage:</i> ${r.stage}\\n`+\n  `   <i>Ask:</i> ${r.funding_needed}\\n`+\n  `   <i>Location:</i> ${r.location}\\n`+\n  `   <i>Contact:</i> ${r.email}\\n\\n`\n);\n\nconst chunks = [];\nlet msg = header;\nconst LIMIT = 3500;\nfor (const L of lines) {\n  if ((msg + L).length > LIMIT) { chunks.push(msg); msg = \"<b>…continued</b>\\n\\n\" + L; }\n  else msg += L;\n}\nif (msg.trim()) chunks.push(msg);\n\nconst out = [];\nfor (const text of chunks) {\n  out.push({\n    json: {\n      chat_id: chatId,\n      parse_mode:'HTML',\n      disable_web_page_preview:true,\n      text\n    }\n  });\n}\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        576
+      ],
+      "id": "71ecdc6f-fcc4-4491-80ff-d5d53d3bc432",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2512,
+        336
+      ],
+      "id": "b54901a7-9bc9-4ddf-b3ce-43fe5b93de67",
+      "name": "Send a text message",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2512,
+        576
+      ],
+      "id": "5743b834-f025-49ea-bb5c-ef6ca00c75cf",
+      "name": "Send a text message1",
+      "webhookId": "REGENERATE_ON_IMPORT",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Getting the user to put their information"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -64,
+        -352
+      ],
+      "typeVersion": 1,
+      "id": "eb9a8948-e440-40b1-84f1-2cacb132fed3",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Extract required information"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1024,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "f21bdf5e-ef80-45a6-b9b2-c4d4d2c1aa69",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Find the matches and send them to user\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2096,
+        80
+      ],
+      "typeVersion": 1,
+      "id": "7457df0f-95b7-4284-988d-775b43177649",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Add user's choice to DB\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        560,
+        96
+      ],
+      "typeVersion": 1,
+      "id": "3856f2e4-3bb8-4739-ba04-468111d2d1ec",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Convert text/voice to text"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        640
+      ],
+      "typeVersion": 1,
+      "id": "5d831012-2c9c-4104-a207-cac750827ddf",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Add the extracted info to DB"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1312,
+        960
+      ],
+      "typeVersion": 1,
+      "id": "76c06b2c-8b7a-4944-a01c-2769e68abbd5",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a Welcome message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Query a callback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Query a callback1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get the voice message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format the Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Query a callback": {
+      "main": [
+        [
+          {
+            "node": "Send Instructions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Query a callback1": {
+      "main": [
+        [
+          {
+            "node": "Send Instructions1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Format the Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Find the role of user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "write_business_profile": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "write_investor_profile1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a Welcome message": {
+      "main": [
+        []
+      ]
+    },
+    "Send Instructions": {
+      "main": [
+        [
+          {
+            "node": "Add the business to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Instructions1": {
+      "main": [
+        [
+          {
+            "node": "Add the investor to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the voice message": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format the Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format the Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add the role the Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find the role of user": {
+      "main": [
+        [
+          {
+            "node": "Add the role the Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "get_user_business",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get_user_investor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_investors": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_businesses": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_user_business": {
+      "main": [
+        [
+          {
+            "node": "list_investors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_user_investor": {
+      "main": [
+        [
+          {
+            "node": "list_businesses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "any",
+    "availableInMCP": false
+  },
+  "versionId": "cd62ab19-e53d-41f6-a893-9ffd25150ec1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "30d6a298db2d679efa1b6637f3028dca7fe7115bc1dc615fced852531c68c1d2"
+  },
+  "id": "ag1APYj1ngm5JtTb",
+  "tags": []
+}
